@@ -1,0 +1,553 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default-Deny Safety Net (Pillar 4.1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Phase 3: Hardened Global Helpers
+    // =========================================================================
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'Ghalleb.Mohamed2@gmail.com'
+      );
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Entity Validation Blueprints (Pillar 2: The "Anti-Update-Gap")
+    // =========================================================================
+
+    function isValidVerifiedProfile(data, userId) {
+      return data.keys().hasAll([
+        'uid', 'displayName', 'handle', 'organization', 'roleTitle',
+        'verificationTier', 'identityHash', 'vouchCount', 'bio',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'displayName', 'handle', 'organization', 'roleTitle',
+        'verificationTier', 'identityHash', 'vouchCount', 'bio',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == userId &&
+      data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+      data.handle is string && data.handle.size() >= 3 && data.handle.size() <= 40 &&
+      data.handle.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.organization is string && data.organization.size() >= 2 && data.organization.size() <= 100 &&
+      data.roleTitle is string && data.roleTitle.size() >= 2 && data.roleTitle.size() <= 80 &&
+      data.verificationTier is string && data.verificationTier.size() <= 32 &&
+      data.verificationTier in ['basic_oauth', 'credential_attested', 'multi_party_vouched'] &&
+      data.identityHash is string && data.identityHash.size() >= 16 && data.identityHash.size() <= 128 &&
+      data.identityHash.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.vouchCount is int && data.vouchCount >= 0 && data.vouchCount <= 10000 &&
+      data.bio is string && data.bio.size() >= 0 && data.bio.size() <= 300 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateIdentityVault(data, userId) {
+      return data.keys().hasAll([
+        'uid', 'email', 'jurisdiction', 'documentType',
+        'documentLastFour', 'attestationSignature', 'verifiedAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'email', 'jurisdiction', 'documentType',
+        'documentLastFour', 'attestationSignature', 'verifiedAt', 'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == userId &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+      data.jurisdiction is string && data.jurisdiction.size() >= 2 && data.jurisdiction.size() <= 80 &&
+      data.documentType is string && data.documentType.size() <= 32 &&
+      data.documentType in ['passport', 'national_id', 'professional_license', 'hardware_key'] &&
+      data.documentLastFour is string && data.documentLastFour.size() == 4 &&
+      data.documentLastFour.matches('^[0-9A-Z]{4}$') &&
+      data.attestationSignature is string && data.attestationSignature.size() >= 16 && data.attestationSignature.size() <= 128 &&
+      data.attestationSignature.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.verifiedAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidVerifiedGroup(data, groupId) {
+      return data.keys().hasAll([
+        'id', 'name', 'purpose', 'category', 'requiredTier', 'visibility',
+        'ownerId', 'ownerName', 'memberCount', 'status', 'tags',
+        'charterHash', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'name', 'purpose', 'category', 'requiredTier', 'visibility',
+        'ownerId', 'ownerName', 'memberCount', 'status', 'tags',
+        'charterHash', 'createdAt', 'updatedAt'
+      ]) &&
+      data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+      data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.id == groupId &&
+      data.name is string && data.name.size() >= 3 && data.name.size() <= 100 &&
+      data.purpose is string && data.purpose.size() >= 10 && data.purpose.size() <= 500 &&
+      data.category is string && data.category.size() <= 32 &&
+      data.category in ['governance', 'security', 'research', 'finance', 'community'] &&
+      data.requiredTier is string && data.requiredTier.size() <= 32 &&
+      data.requiredTier in ['basic_oauth', 'credential_attested', 'multi_party_vouched'] &&
+      data.visibility is string && data.visibility.size() <= 32 &&
+      data.visibility in ['public_verified', 'invite_only'] &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+      data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 80 &&
+      data.memberCount is int && data.memberCount >= 1 && data.memberCount <= 500 &&
+      data.status is string && data.status.size() <= 20 &&
+      data.status in ['active', 'locked', 'archived'] &&
+      data.tags is list && data.tags.size() >= 1 && data.tags.size() <= 5 &&
+      data.tags[0] is string && data.tags[0].size() >= 1 && data.tags[0].size() <= 30 &&
+      data.charterHash is string && data.charterHash.size() >= 10 && data.charterHash.size() <= 128 &&
+      data.charterHash.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidGroupMember(data, groupId, memberId) {
+      return data.keys().hasAll([
+        'uid', 'groupId', 'displayName', 'role', 'verificationTier',
+        'identityHash', 'membershipStatus', 'joinedAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'groupId', 'displayName', 'role', 'verificationTier',
+        'identityHash', 'membershipStatus', 'joinedAt', 'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == memberId &&
+      data.groupId is string && data.groupId.size() >= 1 && data.groupId.size() <= 128 &&
+      data.groupId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.groupId == groupId &&
+      data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+      data.role is string && data.role.size() <= 24 &&
+      data.role in ['founder', 'moderator', 'verified_member'] &&
+      data.verificationTier is string && data.verificationTier.size() <= 32 &&
+      data.verificationTier in ['basic_oauth', 'credential_attested', 'multi_party_vouched'] &&
+      data.identityHash is string && data.identityHash.size() >= 16 && data.identityHash.size() <= 128 &&
+      data.identityHash.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.membershipStatus is string && data.membershipStatus.size() <= 20 &&
+      data.membershipStatus in ['active', 'revoked'] &&
+      data.joinedAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidGroupProposal(data, groupId, proposalId) {
+      return data.keys().hasAll([
+        'id', 'groupId', 'authorId', 'authorName', 'authorIdentityHash',
+        'title', 'summary', 'status', 'approvalsCount', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'groupId', 'authorId', 'authorName', 'authorIdentityHash',
+        'title', 'summary', 'status', 'approvalsCount', 'createdAt', 'updatedAt'
+      ]) &&
+      data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+      data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.id == proposalId &&
+      data.groupId is string && data.groupId.size() >= 1 && data.groupId.size() <= 128 &&
+      data.groupId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.groupId == groupId &&
+      data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+      data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.authorName is string && data.authorName.size() >= 2 && data.authorName.size() <= 80 &&
+      data.authorIdentityHash is string && data.authorIdentityHash.size() >= 16 && data.authorIdentityHash.size() <= 128 &&
+      data.authorIdentityHash.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.title is string && data.title.size() >= 4 && data.title.size() <= 120 &&
+      data.summary is string && data.summary.size() >= 10 && data.summary.size() <= 600 &&
+      data.status is string && data.status.size() <= 20 &&
+      data.status in ['open', 'ratified', 'rejected'] &&
+      data.approvalsCount is int && data.approvalsCount >= 1 && data.approvalsCount <= 500 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidIdentityVouch(data, vouchId) {
+      return data.keys().hasAll([
+        'id', 'voucherId', 'voucherName', 'targetUserId', 'targetUserName',
+        'context', 'signatureHash', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'voucherId', 'voucherName', 'targetUserId', 'targetUserName',
+        'context', 'signatureHash', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+      data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.id == vouchId &&
+      data.voucherId is string && data.voucherId.size() >= 1 && data.voucherId.size() <= 128 &&
+      data.voucherId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.voucherName is string && data.voucherName.size() >= 2 && data.voucherName.size() <= 80 &&
+      data.targetUserId is string && data.targetUserId.size() >= 1 && data.targetUserId.size() <= 128 &&
+      data.targetUserId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.targetUserId != data.voucherId &&
+      data.targetUserName is string && data.targetUserName.size() >= 2 && data.targetUserName.size() <= 80 &&
+      data.context is string && data.context.size() >= 5 && data.context.size() <= 240 &&
+      data.signatureHash is string && data.signatureHash.size() >= 16 && data.signatureHash.size() <= 128 &&
+      data.signatureHash.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.status is string && data.status.size() <= 20 &&
+      data.status in ['active', 'revoked'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection Rules
+    // =========================================================================
+
+    // 1. Public Verified Identity Profiles (/profiles/{userId})
+    match /profiles/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (
+        request.auth.uid == userId ||
+        existing().verificationTier in ['basic_oauth', 'credential_attested', 'multi_party_vouched'] ||
+        isAdmin()
+      );
+
+      allow list: if isVerifiedUser() && (
+        existing().uid == request.auth.uid ||
+        existing().verificationTier in ['basic_oauth', 'credential_attested', 'multi_party_vouched']
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidVerifiedProfile(incoming(), userId) &&
+        incoming().uid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidVerifiedProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          // Action 1: Owner updates profile details or attestation tier
+          (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'handle', 'organization', 'roleTitle',
+              'verificationTier', 'identityHash', 'bio', 'updatedAt'
+            ])
+          ) ||
+          // Action 2: Peer increments vouchCount and potentially upgrades tier
+          (
+            request.auth.uid != userId &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'vouchCount', 'verificationTier', 'updatedAt'
+            ]) &&
+            incoming().vouchCount == existing().vouchCount + 1
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // 2. PII Isolated Private Identity Vault (/users_private/{userId})
+    match /users_private/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if false;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidPrivateIdentityVault(incoming(), userId) &&
+        incoming().uid == request.auth.uid &&
+        incoming().verifiedAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/profiles/$(request.auth.uid));
+
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidPrivateIdentityVault(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().verifiedAt == existing().verifiedAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'jurisdiction', 'documentType', 'documentLastFour',
+              'attestationSignature', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // 3. Verified Groups (/groups/{groupId})
+    match /groups/{groupId} {
+      allow get: if isVerifiedUser() && isValidId(groupId) && (
+        existing().ownerId == request.auth.uid ||
+        existing().visibility == 'public_verified' ||
+        exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) ||
+        isAdmin()
+      );
+
+      allow list: if isVerifiedUser() && (
+        existing().ownerId == request.auth.uid ||
+        existing().visibility == 'public_verified'
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(groupId) &&
+        isValidVerifiedGroup(incoming(), groupId) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().memberCount == 1 &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/profiles/$(request.auth.uid));
+
+      allow update: if isVerifiedUser() &&
+        isValidId(groupId) &&
+        isValidVerifiedGroup(incoming(), groupId) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().status != 'archived' && (
+              // Action 1: Tier 1 Owner updates group settings or lifecycle status
+              (
+                existing().ownerId == request.auth.uid &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'name', 'purpose', 'category', 'requiredTier',
+                  'visibility', 'status', 'tags', 'charterHash', 'updatedAt'
+                ])
+              ) ||
+              // Action 2: Tier 2 Verified Member joins and increments memberCount atomically
+              (
+                existing().status == 'active' &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['memberCount', 'updatedAt']) &&
+                incoming().memberCount == existing().memberCount + 1 &&
+                existsAfter(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid))
+              )
+            )
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(groupId) && isAdmin();
+
+      // 4. Group Members Subcollection (/groups/{groupId}/members/{memberId})
+      match /members/{memberId} {
+        allow get: if isVerifiedUser() &&
+          isValidId(groupId) &&
+          isValidId(memberId) &&
+          exists(/databases/$(database)/documents/groups/$(groupId)) && (
+            request.auth.uid == memberId ||
+            exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) ||
+            get(/databases/$(database)/documents/groups/$(groupId)).data.visibility == 'public_verified' ||
+            isAdmin()
+          );
+
+        allow list: if isVerifiedUser() && (
+          existing().uid == request.auth.uid ||
+          existing().membershipStatus == 'active'
+        );
+
+        allow create: if isVerifiedUser() &&
+          isValidId(groupId) &&
+          isValidId(memberId) &&
+          isValidGroupMember(incoming(), groupId, memberId) &&
+          incoming().uid == request.auth.uid &&
+          incoming().membershipStatus == 'active' &&
+          incoming().joinedAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) &&
+          existsAfter(/databases/$(database)/documents/groups/$(groupId)) &&
+          getAfter(/databases/$(database)/documents/groups/$(groupId)).data.status == 'active' && (
+            (
+              incoming().role == 'founder' &&
+              getAfter(/databases/$(database)/documents/groups/$(groupId)).data.ownerId == request.auth.uid
+            ) ||
+            (
+              incoming().role == 'verified_member' &&
+              getAfter(/databases/$(database)/documents/groups/$(groupId)).data.ownerId != request.auth.uid
+            )
+          );
+
+        allow update: if isVerifiedUser() &&
+          isValidId(groupId) &&
+          isValidId(memberId) &&
+          isValidGroupMember(incoming(), groupId, memberId) &&
+          incoming().uid == existing().uid &&
+          incoming().groupId == existing().groupId &&
+          incoming().joinedAt == existing().joinedAt &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/groups/$(groupId)) && (
+            isAdmin() ||
+            (
+              existing().membershipStatus != 'revoked' &&
+              get(/databases/$(database)/documents/groups/$(groupId)).data.status != 'archived' && (
+                // Action 1: Group Founder promotes/demotes or revokes a member
+                (
+                  get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId == request.auth.uid &&
+                  incoming().diff(existing()).affectedKeys().hasOnly(['role', 'membershipStatus', 'updatedAt'])
+                ) ||
+                // Action 2: Member revokes own membership
+                (
+                  request.auth.uid == memberId &&
+                  incoming().membershipStatus == 'revoked' &&
+                  incoming().diff(existing()).affectedKeys().hasOnly(['membershipStatus', 'updatedAt'])
+                )
+              )
+            )
+          );
+
+        allow delete: if isVerifiedUser() && isValidId(groupId) && isValidId(memberId) && isAdmin();
+      }
+
+      // 5. Group Proposals Subcollection (/groups/{groupId}/proposals/{proposalId})
+      match /proposals/{proposalId} {
+        allow get: if isVerifiedUser() &&
+          isValidId(groupId) &&
+          isValidId(proposalId) &&
+          exists(/databases/$(database)/documents/groups/$(groupId)) && (
+            (
+              exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.membershipStatus == 'active'
+            ) ||
+            isAdmin()
+          );
+
+        allow list: if isVerifiedUser() && (
+          existing().authorId == request.auth.uid ||
+          existing().status in ['open', 'ratified', 'rejected']
+        );
+
+        allow create: if isVerifiedUser() &&
+          isValidId(groupId) &&
+          isValidId(proposalId) &&
+          isValidGroupProposal(incoming(), groupId, proposalId) &&
+          incoming().authorId == request.auth.uid &&
+          incoming().status == 'open' &&
+          incoming().approvalsCount == 1 &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/groups/$(groupId)) &&
+          get(/databases/$(database)/documents/groups/$(groupId)).data.status == 'active' &&
+          exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.membershipStatus == 'active';
+
+        allow update: if isVerifiedUser() &&
+          isValidId(groupId) &&
+          isValidId(proposalId) &&
+          isValidGroupProposal(incoming(), groupId, proposalId) &&
+          incoming().id == existing().id &&
+          incoming().groupId == existing().groupId &&
+          incoming().authorId == existing().authorId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/groups/$(groupId)) &&
+          get(/databases/$(database)/documents/groups/$(groupId)).data.status == 'active' &&
+          exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.membershipStatus == 'active' && (
+            isAdmin() ||
+            (
+              existing().status == 'open' && (
+                // Action 1: Active group member co-signs / approves proposal
+                (
+                  incoming().diff(existing()).affectedKeys().hasOnly(['approvalsCount', 'status', 'updatedAt']) &&
+                  incoming().approvalsCount == existing().approvalsCount + 1
+                ) ||
+                // Action 2: Group founder or proposal author finalizes status
+                (
+                  (
+                    existing().authorId == request.auth.uid ||
+                    get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId == request.auth.uid
+                  ) &&
+                  incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                )
+              )
+            )
+          );
+
+        allow delete: if isVerifiedUser() && isValidId(groupId) && isValidId(proposalId) && isAdmin();
+      }
+    }
+
+    // 6. Peer Identity Vouches (/vouches/{vouchId})
+    match /vouches/{vouchId} {
+      allow get: if isVerifiedUser() && isValidId(vouchId) && (
+        existing().voucherId == request.auth.uid ||
+        existing().targetUserId == request.auth.uid ||
+        existing().status == 'active' ||
+        isAdmin()
+      );
+
+      allow list: if isVerifiedUser() && (
+        existing().voucherId == request.auth.uid ||
+        existing().targetUserId == request.auth.uid ||
+        existing().status == 'active'
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(vouchId) &&
+        isValidIdentityVouch(incoming(), vouchId) &&
+        incoming().voucherId == request.auth.uid &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) &&
+        exists(/databases/$(database)/documents/profiles/$(incoming().targetUserId));
+
+      allow update: if isVerifiedUser() &&
+        isValidId(vouchId) &&
+        isValidIdentityVouch(incoming(), vouchId) &&
+        incoming().id == existing().id &&
+        incoming().voucherId == existing().voucherId &&
+        incoming().targetUserId == existing().targetUserId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().status != 'revoked' &&
+            existing().voucherId == request.auth.uid &&
+            incoming().status == 'revoked' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(vouchId) && isAdmin();
+    }
+
+    // 7. Admins Registry (/admins/{adminId})
+    match /admins/{adminId} {
+      allow get: if isVerifiedUser() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list: if false;
+      allow write: if false;
+    }
+  }
+}

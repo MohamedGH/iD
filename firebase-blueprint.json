@@ -1,0 +1,539 @@
+{
+  "entities": {
+    "VerifiedProfile": {
+      "title": "VerifiedProfile",
+      "description": "Public verified identity directory record without sensitive PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the identity holder.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public verified display name.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "handle": {
+          "type": "string",
+          "description": "Unique alphanumeric identity handle.",
+          "minLength": 3,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "organization": {
+          "type": "string",
+          "description": "Verified institution or organization affiliation.",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "roleTitle": {
+          "type": "string",
+          "description": "Professional or civic role title.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "verificationTier": {
+          "type": "string",
+          "description": "Attestation tier achieved by the member.",
+          "enum": ["basic_oauth", "credential_attested", "multi_party_vouched"]
+        },
+        "identityHash": {
+          "type": "string",
+          "description": "Cryptographic SHA-256 fingerprint of the identity attestation.",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "vouchCount": {
+          "type": "number",
+          "description": "Number of active peer vouches received."
+        },
+        "bio": {
+          "type": "string",
+          "description": "Short statement of domain expertise and verification scope.",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of initial profile creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "handle",
+        "organization",
+        "roleTitle",
+        "verificationTier",
+        "identityHash",
+        "vouchCount",
+        "bio",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PrivateIdentityVault": {
+      "title": "PrivateIdentityVault",
+      "description": "Strictly isolated PII vault accessible only to the document owner.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified email address of the user.",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Legal jurisdiction of identity credential.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "documentType": {
+          "type": "string",
+          "description": "Type of identity credential attested.",
+          "enum": ["passport", "national_id", "professional_license", "hardware_key"]
+        },
+        "documentLastFour": {
+          "type": "string",
+          "description": "Last 4 characters of credential serial number.",
+          "minLength": 4,
+          "maxLength": 4,
+          "pattern": "^[0-9A-Z]{4}$"
+        },
+        "attestationSignature": {
+          "type": "string",
+          "description": "Cryptographic signature of the credential commitment.",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "verifiedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when credential was attested."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last vault update."
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "jurisdiction",
+        "documentType",
+        "documentLastFour",
+        "attestationSignature",
+        "verifiedAt",
+        "updatedAt"
+      ]
+    },
+    "VerifiedGroup": {
+      "title": "VerifiedGroup",
+      "description": "High-trust group formed by people with verified identities.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique group identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Official name of the verified group.",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Mission statement and governance charter summary.",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "category": {
+          "type": "string",
+          "description": "Domain classification of the group.",
+          "enum": ["governance", "security", "research", "finance", "community"]
+        },
+        "requiredTier": {
+          "type": "string",
+          "description": "Minimum verification tier required to join.",
+          "enum": ["basic_oauth", "credential_attested", "multi_party_vouched"]
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Discovery policy for the group.",
+          "enum": ["public_verified", "invite_only"]
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the founding group creator.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerName": {
+          "type": "string",
+          "description": "Display name of the founding creator.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "memberCount": {
+          "type": "number",
+          "description": "Count of active verified members in the group."
+        },
+        "status": {
+          "type": "string",
+          "description": "Lifecycle status of the group (archived is terminal).",
+          "enum": ["active", "locked", "archived"]
+        },
+        "tags": {
+          "type": "array",
+          "description": "Bounded list of up to 5 domain tags."
+        },
+        "charterHash": {
+          "type": "string",
+          "description": "Cryptographic digest of the group founding charter.",
+          "minLength": 10,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of group creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last group update."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "purpose",
+        "category",
+        "requiredTier",
+        "visibility",
+        "ownerId",
+        "ownerName",
+        "memberCount",
+        "status",
+        "tags",
+        "charterHash",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GroupMember": {
+      "title": "GroupMember",
+      "description": "Subcollection membership record linking a verified identity to a group.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Member Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Parent group ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Verified display name of the member.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "role": {
+          "type": "string",
+          "description": "Role within the group.",
+          "enum": ["founder", "moderator", "verified_member"]
+        },
+        "verificationTier": {
+          "type": "string",
+          "description": "Verification tier at time of joining.",
+          "enum": ["basic_oauth", "credential_attested", "multi_party_vouched"]
+        },
+        "identityHash": {
+          "type": "string",
+          "description": "Member cryptographic identity hash.",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "membershipStatus": {
+          "type": "string",
+          "description": "Membership status (revoked is terminal).",
+          "enum": ["active", "revoked"]
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when member joined."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last membership update."
+        }
+      },
+      "required": [
+        "uid",
+        "groupId",
+        "displayName",
+        "role",
+        "verificationTier",
+        "identityHash",
+        "membershipStatus",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "GroupProposal": {
+      "title": "GroupProposal",
+      "description": "Verified resolution or attestation proposed inside a group.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique proposal identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Parent group identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "UID of the verified member who authored the proposal.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Display name of the proposal author.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "authorIdentityHash": {
+          "type": "string",
+          "description": "Cryptographic identity hash of the author.",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the proposal or attestation.",
+          "minLength": 4,
+          "maxLength": 120
+        },
+        "summary": {
+          "type": "string",
+          "description": "Detailed text of the resolution.",
+          "minLength": 10,
+          "maxLength": 600
+        },
+        "status": {
+          "type": "string",
+          "description": "Resolution status (ratified and rejected are terminal).",
+          "enum": ["open", "ratified", "rejected"]
+        },
+        "approvalsCount": {
+          "type": "number",
+          "description": "Number of member approvals recorded."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "groupId",
+        "authorId",
+        "authorName",
+        "authorIdentityHash",
+        "title",
+        "summary",
+        "status",
+        "approvalsCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "IdentityVouch": {
+      "title": "IdentityVouch",
+      "description": "Cryptographic peer vouch attesting to another member's verified identity.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique vouch ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "voucherId": {
+          "type": "string",
+          "description": "UID of the member issuing the vouch.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "voucherName": {
+          "type": "string",
+          "description": "Display name of the voucher.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "targetUserId": {
+          "type": "string",
+          "description": "UID of the member receiving the vouch.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "targetUserName": {
+          "type": "string",
+          "description": "Display name of the recipient.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "context": {
+          "type": "string",
+          "description": "Verification context explaining how identity was confirmed.",
+          "minLength": 5,
+          "maxLength": 240
+        },
+        "signatureHash": {
+          "type": "string",
+          "description": "Cryptographic hash of the peer attestation.",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the vouch (revoked is terminal).",
+          "enum": ["active", "revoked"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of vouch creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "id",
+        "voucherId",
+        "voucherName",
+        "targetUserId",
+        "targetUserName",
+        "context",
+        "signatureHash",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "System administrator registry document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "VerifiedProfile",
+      "description": "Public verified identity profiles without PII."
+    },
+    "/users_private/{userId}": {
+      "schema": "PrivateIdentityVault",
+      "description": "Strictly isolated PII credential vault accessible only by the owner."
+    },
+    "/groups/{groupId}": {
+      "schema": "VerifiedGroup",
+      "description": "Verified identity groups and trust circles."
+    },
+    "/groups/{groupId}/members/{memberId}": {
+      "schema": "GroupMember",
+      "description": "Subcollection of verified members belonging to a group."
+    },
+    "/groups/{groupId}/proposals/{proposalId}": {
+      "schema": "GroupProposal",
+      "description": "Subcollection of proposals and attestations within a group."
+    },
+    "/vouches/{vouchId}": {
+      "schema": "IdentityVouch",
+      "description": "Peer-to-peer cryptographic identity vouches."
+    },
+    "/admins/{adminId}": {
+      "schema": "AdminRecord",
+      "description": "Trusted admin lookup collection."
+    }
+  }
+}

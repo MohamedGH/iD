@@ -1,0 +1,6 @@
+{
+  "name": "VeriCircle — Verified Identity Group Protocol",
+  "description": "Cryptographically attested identity verification and high-trust group formation platform for verified assemblies, peer vouching, and charter governance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
